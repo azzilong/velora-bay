@@ -146,7 +146,7 @@ export function generateBuildings() {
           if (px0 < sx1 && px1 > sx0 && pz0 < sz1 && pz1 > sz0) { clash = true; break; }
         }
         if (clash) continue;
-        if (rng() < 0.18) continue; // leave some slots as yards / parking
+        if (isBeach ? rng() < 0.55 : rng() < 0.18) continue; // beach stays airy; some slots stay yards / parking
         const [hMin, hMax] = heights[district.id];
         const w = Math.min(sx1 - sx0 - 6, 10 + rng() * 14);
         const d = Math.min(sz1 - sz0 - 6, 9 + rng() * 11);
