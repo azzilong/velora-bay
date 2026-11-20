@@ -455,8 +455,15 @@ function applyDemo() {
       u.car.position.set(u.x, 0, u.z);
     });
     G.police.wanted = 4;
+    // helicopter: demo override so it is CLEARLY VISIBLE in the chase shot.
+    // The chase camera sits 8 m behind the Saw at y=3.2 looking down ~18 deg
+    // (62 deg FOV, frame top ~+13 deg), so the default hover (6 m ahead, 16 m
+    // high = ~+41 deg) is far above the frame — only its searchlight showed.
+    // 20 m ahead / 8 m high puts it at ~+10 deg elevation, upper-centre of
+    // the frame, rotor ~160 px: a real helicopter in the sky above the road.
+    G.police.heliDX = 20; G.police.heliY = 8; G.police.heliDZ = -4;
     G.police.heliActive = true; G.police.heli.visible = true;
-    G.police.heli.position.set(-24, 16, 124);
+    G.police.heli.position.set(-10, 8, 124);
     G.police.roadblock.forEach((car, i) => {
       car.visible = true;
       car.position.set(80 + i * 7, 0, 128);

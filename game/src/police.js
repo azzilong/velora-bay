@@ -94,7 +94,9 @@ export function updatePolice(P, dt, playerPos, playerSpeed, onSpotted) {
   if (wantHeli && !P.heliActive) { P.heliActive = true; P.heli.visible = true; }
   if (!wantHeli && P.heliActive) { P.heliActive = false; P.heli.visible = false; }
   if (P.heliActive) {
-    P.heli.position.set(playerPos.x + 6, 16, playerPos.z - 4);
+    // demo override (chase demo only): P.heliDX/heliY/heliDZ set by the
+    // demo staging; otherwise the default hover (6 ahead, 16 high, -4 side)
+    P.heli.position.set(playerPos.x + (P.heliDX ?? 6), P.heliY ?? 16, playerPos.z + (P.heliDZ ?? -4));
     P.rotor.rotation.y += dt * 22;
     P.spot.intensity = 30;
   }
