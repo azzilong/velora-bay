@@ -6,7 +6,7 @@
 
 **Velora Bay** is a 3D low-poly open-world crime game built for [make.fun](https://make.fun/bounty/gta6-01)'s "Make GTA 6" bounty (gta6-01). From sawdust to City Hall — one city, one crew, one last stand.
 
-Play as Eli Braddock, a carpenter turned folk hero, fighting developer Victor Hale and Mayor Conrad Vance to take back Velora Bay. Explore five districts (Portside, Velora Center, Marina Heights, Neon Row, Velora Beach) on foot and by car, complete 8 story missions across 3 acts, raise your crew of six, collect 20 Gold Bars, and end the game as Mayor of Velora Bay.
+You play Eli Braddock, a carpenter turned folk hero, standing up to developer Victor Hale and Mayor Conrad Vance to take back Velora Bay. Roam five districts (Portside, Velora Center, Marina Heights, Neon Row, Velora Beach) on foot and behind the wheel, play through 8 story missions across 3 acts, build up your crew of six, hunt down 20 Gold Bars, and finish the game as Mayor of Velora Bay.
 
 ## Features
 
