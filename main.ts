@@ -1,16 +1,19 @@
-// A working gta6-01 entry (Node 22, standard library only): the game is this directory's
-// game/ folder, plain static files a desktop browser loads offline (game/index.html and its ES
-// modules, no library and no network request), and the program hands it in. It copies game/ and
-// screenshots/ from beside this file to /output and writes /output/dossier.json, the summary the
-// judge reads, with the vendored make.fun library. Only the plumbing, not an open world: Block
-// Dodger, a plain 2D canvas game where a paddle dodges falling blocks and catches coins, with a
-// title screen, score, lives and levels, game over and restart, flat colours and no sound. Build
-// your own open-world crime game in its place (three.js or any library you vendor under game/),
-// put your 3 or 4 PNG or JPEG screenshots in screenshots/ (the first by name is the cover) and run it.
+// VELORA BAY — From Sawdust to City Hall (gta6-01 entry, Node 22, stdlib only).
+// The game is this directory's game/ folder: plain static files a desktop
+// browser loads offline (game/index.html + its ES modules + a vendored
+// three.js under game/vendor/, no network request). It is a full 3D
+// low-poly open-world crime game: a coastal city with 5 districts, 8 story
+// missions, driving, carjacking, combat, wanted/police, crew, properties,
+// 20 Gold Bars, K-9 Barnaby, saves, and a navy-and-gold HUD with minimap.
+// This program copies game/ and screenshots/ beside it to /output and
+// writes /output/dossier.json, the summary the judge reads, with the
+// vendored make.fun library.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// Screenshots (first by name = cover): 1-chase.jpg (?demo=chase),
+// 2-night.jpg (?demo=night), 3-map.jpg (?demo=map), 4-win.jpg (?demo=win).
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
