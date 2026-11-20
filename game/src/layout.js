@@ -207,7 +207,7 @@ export const PED_LOOPS = [
 
 // ---- Spawn: Eli starts in the workshop yard, Golden Saw parked beside him.
 export const SPAWN = { x: -92, z: -18, rotY: Math.PI / 2 };
-export const GOLDEN_SAW = { x: -88, z: -8, rotY: Math.PI / 2 };
+export const GOLDEN_SAW = { x: -88, z: -8, rotY: -Math.PI / 2 };
 
 // ---- Validation: no building footprint may intersect any road rect
 // expanded by a 2 m safety margin. Returns a list of violations (empty = OK).

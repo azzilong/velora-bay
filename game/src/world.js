@@ -86,7 +86,8 @@ export function buildWorld(scene) {
   sunLight.shadow.camera.far = 900;
   sunLight.shadow.bias = -0.0006;
   scene.add(sunLight);
-  scene.add(new THREE.HemisphereLight(0x9ec8e8, 0x8a6f4d, 0.85));
+  const hemi = new THREE.HemisphereLight(0x9ec8e8, 0x8a6f4d, 0.85);
+  scene.add(hemi);
   const fill = new THREE.DirectionalLight(0xbfd9ff, 0.35);
   fill.position.set(200, 120, -180);
   scene.add(fill);
@@ -117,7 +118,7 @@ export function buildWorld(scene) {
   scene.add(sandWest);
 
   // ---------- roads + sidewalks + markings ----------
-  const asphalt = mat(0x3a3f4a, 0.95);
+  const asphalt = mat(0x484d59, 0.95);
   const walkMat = mat(0xb8b0a0, 0.95);
   const dashMat = mat(0xe8c25a, 0.8);
   const whiteMat = mat(0xf5f2e8, 0.8);
@@ -407,8 +408,8 @@ export function buildWorld(scene) {
   // ---------- palms ----------
   const palmTrunkGeo = new THREE.CylinderGeometry(0.28, 0.45, 7, 7);
   const palmTrunkMat = mat(0x8a6a4a, 0.9);
-  const palmFrondGeo = new THREE.ConeGeometry(1.1, 4.4, 4);
-  palmFrondGeo.scale(1, 1, 0.28);
+  const palmFrondGeo = new THREE.ConeGeometry(0.9, 5.4, 4);
+  palmFrondGeo.scale(1, 1, 0.22);
   const palmFrondMat = mat(0x3f9a4d, 0.9);
   const palmSpots = [];
   for (let x = -180; x <= 180; x += 24) {
@@ -418,7 +419,7 @@ export function buildWorld(scene) {
   for (let x = 80; x <= 190; x += 26) palmSpots.push([x, -40 + ((x * 3) % 7)]);
   for (let i = 0; i < 14; i++) palmSpots.push([-190 + (i % 7) * 8, -120 + Math.floor(i / 7) * 60]);
   const trunks = new THREE.InstancedMesh(palmTrunkGeo, palmTrunkMat, palmSpots.length);
-  const fronds = new THREE.InstancedMesh(palmFrondGeo, palmFrondMat, palmSpots.length * 5);
+  const fronds = new THREE.InstancedMesh(palmFrondGeo, palmFrondMat, palmSpots.length * 6);
   {
     const m4 = new THREE.Matrix4(); const q = new THREE.Quaternion();
     const zAxis = new THREE.Vector3(0, 0, 1); const up = new THREE.Vector3(0, 1, 0);
@@ -427,11 +428,11 @@ export function buildWorld(scene) {
       q.setFromAxisAngle(zAxis, lean);
       m4.compose(new THREE.Vector3(x, 3.5, z), q, new THREE.Vector3(1, 1, 1));
       trunks.setMatrixAt(i, m4);
-      for (let f = 0; f < 5; f++) {
-        const fq = new THREE.Quaternion().setFromAxisAngle(up, (f / 5) * Math.PI * 2 + i);
-        fq.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1.15));
-        m4.compose(new THREE.Vector3(x, 7.1, z), fq, new THREE.Vector3(1.6, 1.6, 1.6));
-        fronds.setMatrixAt(i * 5 + f, m4);
+      for (let f = 0; f < 6; f++) {
+        const fq = new THREE.Quaternion().setFromAxisAngle(up, (f / 6) * Math.PI * 2 + i * 0.7);
+        fq.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1.35));
+        m4.compose(new THREE.Vector3(x, 7.2, z), fq, new THREE.Vector3(1.5, 1.5, 1.5));
+        fronds.setMatrixAt(i * 6 + f, m4);
       }
     });
   }
@@ -496,6 +497,11 @@ export function buildWorld(scene) {
   return {
     colliders,
     goldBarMesh: bars,
+    sunLight,
+    hemi,
+    sky,
+    sunDisc: sun,
+    cloudMat,
     animate(t) {
       for (const w of animated.water) w.position.y = -0.4 + Math.sin(t * 0.5 + w.position.x) * 0.08;
     },
