@@ -426,8 +426,8 @@
         var rec = S.crew[key];
         html3 += '<div class="crew-card ' + (rec ? 'recruited' : 'locked') + '">' +
           '<div class="crew-dot" style="background:#' + def.color.toString(16).padStart(6, '0') + '"></div>' +
-          '<div class="crew-name">' + def.name + '</div>' +
-          '<div class="crew-role">' + def.role + '</div>' +
+          '<div class="crew-info"><div class="crew-name">' + def.name + '</div>' +
+          '<div class="crew-role">' + def.role + '</div></div>' +
           '<div class="crew-state">' + (rec ? 'RECRUITED' : 'NOT RECRUITED') + '</div></div>';
       });
       crew.innerHTML = html3;

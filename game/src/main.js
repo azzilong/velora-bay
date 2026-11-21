@@ -143,6 +143,11 @@
   function clearStaged() {
     stagedExtras.forEach(function (g) { if (g.parent) g.parent.remove(g); });
     stagedExtras = [];
+    // Every stage starts UNFROZEN: the previous stage (e.g. the chase)
+    // leaves the game frozen, and actions like fire() refuse to run while
+    // frozen — the night shot's shot never fired, so no tracer, no damage
+    // number, and the ammo never dropped. Each stage re-freezes at its end.
+    VB.freeze(false);
     VB.player.camTilt = 0;
     var wheel = document.getElementById('wheel');
     if (wheel) wheel.style.transform = '';
@@ -298,10 +303,10 @@
         t.x = nx; t.z = nz;
         t.group.position.set(nx, 0, nz);
       });
-      // Fill the frame: market tents FLANKING the thugs, north of Eli — in
-      // frame. (The old spots at z=+4/+5 sat between Eli and the camera,
-      // behind the lens, so the shot showed empty asphalt instead.)
-      var tentSpots = [[-72, -5, 0xd94f4f], [-56, -5, 0xd4a017], [-58, -14, 0x2e6b8a]];
+      // Fill the frame: market tents on the north sidewalk (z -7..-8, just
+      // in front of the building faces), clustered west of centre so the
+      // weapon wheel (right side) covers none of them.
+      var tentSpots = [[-69, -7, 0xd94f4f], [-66, -8, 0xd4a017], [-63, -7, 0x2e6b8a]];
       tentSpots.forEach(function (ts) {
         var tent = new THREE.Group();
         var base = new THREE.Mesh(new THREE.BoxGeometry(3, 1.6, 2.4), new THREE.MeshStandardMaterial({ color: 0x3a3f4a, roughness: 0.9 }));
@@ -314,31 +319,40 @@
         addStaged(tent);
       });
       VB.combat.setWeapon('pistol');
-      VB.combat.spawnThug(-60, -8, 'pistol', 'night');
-      VB.combat.spawnThug(-68, -7, 'bat', 'night');
-      VB.combat.spawnThug(-58, -12, 'pistol', 'night');
+      // Three thugs mid-fight ON THE NORTH SIDEWALK, 4-6 m north of Eli,
+      // clustered west of centre so they project into the open frame
+      // between the VBPD panel (left) and the weapon wheel (right).
+      // (Earlier spots at x -58..-60 / z -8..-12 projected behind the
+      // wheel, behind the VBPD panel, or inside the north-side buildings,
+      // so the fight was invisible.)
+      VB.combat.spawnThug(-67, -5, 'pistol', 'night');
+      VB.combat.spawnThug(-65, -6, 'bat', 'night');
+      VB.combat.spawnThug(-64, -7, 'pistol', 'night');
       VB.missions.preview(6, 1);
       VB.hud.refresh();
       VB.player.updateCamera(camera, 1);
       // Mid-fight: Eli fires (tracer + flash from the camera ray)
       VB.combat.aiming = true;
       VB.combat.fire();
+      // Keep ammo consistent across shots (12/48 everywhere): reset BEFORE
+      // opening the wheel, so the wheel segment and the HUD bar agree
+      // (the wheel renders its ammo text when it opens).
+      VB.state.weapons.pistol.ammo = 12;
       VB.combat.openWheel();
       // Shift the wheel right AND down so Eli + the thugs stay visible left of
       // it and its top segment clears the HUD weapon bar (the 420 px wheel
       // used to cover them completely at screen centre).
       document.getElementById('wheel').style.transform = 'translate(calc(-50% + 260px), calc(-50% + 60px))';
-      // Keep ammo consistent across shots (12/48 everywhere)
-      VB.state.weapons.pistol.ammo = 12;
       VB.hud.refresh();
       VB.hud.drawMinimap(); // frozen staging never runs hud.update, so the
       // minimap canvas would stay blank (transparent) without this
       VB.freeze(true);
-      // Frozen-frame combat FX: thug tracer toward Eli + damage number on the
-      // pistol thug. These persist because the frozen loop never fades them.
+      // Frozen-frame combat FX: the west pistol thug's tracer toward Eli,
+      // and the damage number on the bat thug Eli just hit — both in the
+      // open centre-left of the frame, clear of the wheel.
       VB.combat.stageCombatFX(
-        new THREE.Vector3(-60, 1.4, -8), new THREE.Vector3(-64, 1.3, -1),
-        '-34', new THREE.Vector3(-60, 1.8, -8));
+        new THREE.Vector3(-67, 1.4, -5), new THREE.Vector3(-64, 1.3, -1),
+        '-34', new THREE.Vector3(-65, 1.8, -6));
     },
     stageMap: function () {
       clearStaged();

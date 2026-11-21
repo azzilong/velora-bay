@@ -179,6 +179,12 @@
   }
 
   function projectToScreen(v3) {
+    // Force the camera matrices current: when a staging function snaps the
+    // camera and then projects a point in the same synchronous JS turn (no
+    // renderer.render has run since the snap), the matrixWorldInverse is
+    // still the PREVIOUS camera's, and the point projects far off-screen
+    // (the chase-then-night capture put '-34' at x=9514, y=-1084).
+    cameraRef.updateMatrixWorld();
     var v = v3.clone().project(cameraRef);
     return {
       x: (v.x * 0.5 + 0.5) * window.innerWidth,
