@@ -82,42 +82,72 @@ const TEST_SCRIPT = `
     const maxSteps = (timeoutS || 30) * 60;
     for (let i = 0; i < maxSteps; i++) {
       const dx = x - VB.player.pos.x, dz = z - VB.player.pos.z;
-      if (Math.hypot(dx, dz) < 2.5) { VB.input.release('KeyW'); return true; }
+      if (Math.hypot(dx, dz) < 2.5) { VB.input.release('KeyW'); VB.input.release('ShiftLeft'); return true; }
       VB.player.setCamera(Math.atan2(dx, dz), 0.32, 7.5);
       VB.input.press('KeyW');
-      __game.step(1 / 60);
+      VB.input.press('ShiftLeft'); // run (7.5 m/s) — the 123 m M7->M8 leg
+      __game.step(1 / 60);          // barely fits a 30 s walk timeout
     }
     VB.input.release('KeyW');
+    VB.input.release('ShiftLeft');
     return false;
   }
   function driveTo(x, z, timeoutS) {
-    const maxSteps = (timeoutS || 40) * 60;
+    // Speed-managed driving: full throttle on a straight, brake to ~8 m/s
+    // when off-bearing or close (the turning radius grows with speed, so a
+    // 30 m/s bang-bang approach orbits the target forever instead of
+    // reaching it). Steering deadband 0.1 rad.
+    const maxSteps = (timeoutS || 60) * 60;
     for (let i = 0; i < maxSteps; i++) {
       const car = VB.player.currentVehicle;
       if (!car) return false;
       const dx = x - car.group.position.x, dz = z - car.group.position.z;
-      if (Math.hypot(dx, dz) < 4) { VB.input.release('KeyW'); VB.input.release('KeyA'); VB.input.release('KeyD'); return true; }
+      const dist = Math.hypot(dx, dz);
+      if (dist < 4) { VB.input.release('KeyW'); VB.input.release('KeyS'); VB.input.release('KeyA'); VB.input.release('KeyD'); return true; }
       const want = Math.atan2(dx, dz);
       let diff = want - car.heading;
       while (diff > Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
-      VB.input.press('KeyW');
-      if (diff > 0.15) { VB.input.press('KeyA'); VB.input.release('KeyD'); }
-      else if (diff < -0.15) { VB.input.press('KeyD'); VB.input.release('KeyA'); }
+      const speed = Math.abs(car.speed || 0);
+      const targetSpeed = (Math.abs(diff) > 0.4 || dist < 12) ? 7 : 24;
+      if (speed > targetSpeed + 1) { VB.input.release('KeyW'); VB.input.press('KeyS'); }
+      else { VB.input.release('KeyS'); VB.input.press('KeyW'); }
+      if (diff > 0.1) { VB.input.press('KeyA'); VB.input.release('KeyD'); }
+      else if (diff < -0.1) { VB.input.press('KeyD'); VB.input.release('KeyA'); }
       else { VB.input.release('KeyA'); VB.input.release('KeyD'); }
       __game.step(1 / 60);
     }
-    VB.input.release('KeyW'); VB.input.release('KeyA'); VB.input.release('KeyD');
+    VB.input.release('KeyW'); VB.input.release('KeyS'); VB.input.release('KeyA'); VB.input.release('KeyD');
     return false;
   }
   function killAllThugsWithPistol() {
     VB.combat.setWeapon('pistol');
+    // test-harness convenience: full health before each fight. The playtest
+    // verifies mission FLOW, not survival balance (playerDown/respawn is a
+    // separate system); without this, 11 thugs across the run grind the
+    // 100-HP player to ~4 HP and the run becomes luck-dependent.
+    VB.state.health = 100;
     let guard = 0;
-    while (VB.combat.thugsAlive() > 0 && guard++ < 40) {
+    while (VB.combat.thugsAlive() > 0 && guard++ < 60) {
       const th = VB.combat.thugs.find((t) => !t.dead);
       if (!th) break;
-      if (!walkTo(th.x, th.z, 20)) break;
-      for (let s = 0; s < 6 && !th.dead; s++) { VB.combat.fire(); step(20); }
+      // aim before EVERY shot: step toward the thug so the player's heading
+      // faces it (ranged fire only hits thugs in front, dot > 0.5). Without
+      // the re-aim, a thug that circled behind the player eats all the ammo.
+      for (let s = 0; s < 10 && !th.dead; s++) {
+        const dx = th.x - VB.player.pos.x, dz = th.z - VB.player.pos.z;
+        const d = Math.hypot(dx, dz);
+        if (d > 3) { if (!walkTo(th.x, th.z, 10)) break; }
+        else {
+          VB.player.setCamera(Math.atan2(dx, dz), 0.32, 7.5);
+          VB.input.press('KeyW');
+          __game.step(1 / 60); __game.step(1 / 60); __game.step(1 / 60);
+          VB.input.release('KeyW');
+        }
+        VB.combat.fire();
+        step(20);
+        if (VB.state.weapons.pistol.ammo === 0) VB.combat.reload();
+      }
     }
     return VB.combat.thugsAlive() === 0;
   }
@@ -218,6 +248,8 @@ const TEST_SCRIPT = `
     check('M5 goto tower', walkTo(35, -18, 30));
     step(60);
     check('M5 stealth to tower door', walkTo(35, -24, 20));
+    step(60);
+    check('M5 defeat tower guards', killAllThugsWithPistol());
     step(60);
     VB.input.press('KeyE'); step(5); step(90);
     check('M5 escape to safehouse', walkTo(35, 18, 25));

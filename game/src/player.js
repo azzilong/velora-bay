@@ -19,6 +19,7 @@
     keys: keys,
     down: function (code) { return !!keys[code]; },
     consume: function (code) { var v = !!pressed[code]; pressed[code] = false; return v; },
+    hasPressed: function (code) { return !!pressed[code]; },
     press: function (code) { keys[code] = true; pressed[code] = true; },
     release: function (code) { keys[code] = false; },
     clearPressed: function () { pressed = {}; }
@@ -361,7 +362,7 @@
   // ---------------- player state ----------------
   var sceneRef, cameraRef;
   var pos = { x: -63, z: -20 };
-  var heading = 0, camYaw = 0, camPitch = 0.32, camDist = 7.5;
+  var heading = 0, camYaw = 0, camPitch = 0.32, camDist = 7.5, eHeld = 0;
   var vy = 0, onGround = true, walkPhase = 0, moving = false;
   var eli, eliHeld = {};
   var barnaby = null, barnabyPos = { x: -61, z: -18 };
@@ -418,8 +419,9 @@
     scene.add(barnaby.group);
     // hero Golden Saw
     heroSaw = makeCar({ color: 0xe8a91c, emissive: 0x8a6d1a, ei: 0.65, sport: true, plate: 'VELM 001' });
-    heroSaw.x = -10; heroSaw.z = 2.5; heroSaw.heading = 0; heroSaw.speed = 0;
+    heroSaw.x = -10; heroSaw.z = 2.5; heroSaw.heading = Math.PI / 2; heroSaw.speed = 0;
     heroSaw.group.position.set(-10, 0, 2.5);
+    heroSaw.group.rotation.y = Math.PI / 2;
     scene.add(heroSaw.group);
     // mission lumber truck (M3)
     var truck = makeTruck();
@@ -526,12 +528,18 @@
     var S = VB.state;
     if (S.mode !== 'playing' || S.frozen) return;
     // mouse-look drag (hold right mouse or drag)
-    // keyboard camera: Q/E rotate
+    // keyboard camera: Q/E rotate — but a quick E tap is an action (enter /
+    // interact), so E only rotates the camera once it has been HELD > 0.15 s.
+    if (keys['KeyE']) eHeld += dt; else eHeld = 0;
     if (keys['KeyQ']) camYaw += 1.8 * dt;
-    if (keys['KeyE'] && !VB.missions.dialogueActive()) camYaw -= 1.8 * dt;
+    if (keys['KeyE'] && eHeld > 0.15 && !VB.missions.dialogueActive()) camYaw -= 1.8 * dt;
 
     if (currentVehicle) {
       driveVehicle(dt, currentVehicle);
+      // the player's position IS the vehicle while driving — mission
+      // driveThru / driveTo / chase stages measure VB.player.pos
+      pos.x = currentVehicle.group.position.x;
+      pos.z = currentVehicle.group.position.z;
       // exit vehicle
       if (VB.input.consume('KeyF') || VB.input.consume('KeyE')) exitVehicle();
       updateCamera(cameraRef, 0);
@@ -629,16 +637,29 @@
       VB.toast('K-9 ALERT — police closing in!');
     } else if (!policeNear) { barnaby._alerted = false; }
 
-    // enter hero Saw / nearby vehicle with E
-    if (VB.input.consume('KeyE') && !VB.missions.dialogueActive()) {
-      var dSaw = U.dist2(pos.x, pos.z, heroSaw.x, heroSaw.z);
-      if (dSaw < 3.5) { enterVehicle(heroSaw); }
-      else if (VB.player.missionTruck && U.dist2(pos.x, pos.z, VB.player.missionTruck.x, VB.player.missionTruck.z) < 4) {
-        enterVehicle(VB.player.missionTruck);
-      }
-      else if (VB.ai) {
-        var car = VB.ai.nearestTrafficCar(pos.x, pos.z, 3.5);
-        if (car) enterVehicle(car);
+    // enter hero Saw / nearby vehicle with E — only CONSUME the press when a
+    // vehicle is actually there to enter. If E is consumed here unconditionally,
+    // mission interact / rally stages (checked later in missions.update) never
+    // see the press and the player is stuck on M1 forever.
+    // Priority: a mission interact / rally point under the player's feet wins
+    // over vehicle entry — otherwise a passing traffic car at a rally point
+    // swallows the E press and the player drives off in a Red GT instead of
+    // rallying (reproduced in the M6 probe: traffic 3 m away at Center).
+    if (!VB.missions.dialogueActive() && VB.input.hasPressed('KeyE')) {
+      var st = VB.missions.currentStage ? VB.missions.currentStage() : null;
+      var onMissionPoint = st && (st.type === 'interact' || st.type === 'rally')
+        && U.dist2(pos.x, pos.z, st.x, st.z) <= st.r;
+      if (!onMissionPoint) {
+        var dSaw = U.dist2(pos.x, pos.z, heroSaw.x, heroSaw.z);
+        var enterCar = null;
+        if (dSaw < 3.5) { enterCar = heroSaw; }
+        else if (VB.player.missionTruck && U.dist2(pos.x, pos.z, VB.player.missionTruck.x, VB.player.missionTruck.z) < 4) {
+          enterCar = VB.player.missionTruck;
+        }
+        else if (VB.ai) {
+          enterCar = VB.ai.nearestTrafficCar(pos.x, pos.z, 3.5);
+        }
+        if (enterCar) { VB.input.consume('KeyE'); enterVehicle(enterCar); }
       }
     }
     // carjack with F (traffic car with driver)
