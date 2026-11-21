@@ -1,134 +1,357 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s steps
-// (several in a slow frame, none in a fast one), and the renderer paints what is there. The game
-// moves between four screens: title, play, paused and game over.
-//
-// ?seed=N fixes the falling pattern. ?shot=start|play|end (with &seed=N) stages that scene
-// instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, LIVES, STEP } from './config.js';
-import { createRandom } from './random.js';
-import { createWorld, EVENT_HIT, EVENT_OVER } from './world.js';
-import { ACTION_CONFIRM, ACTION_PAUSE, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
-import { stageShot } from './shots.js';
+// Velora Bay — main.js
+// Renderer, scene, game loop, modes, demo save, staging API.
+// The demo save is ONE canonical state shared by every staged screenshot so
+// money / REP / GOLD / mission / crew / stats are identical across shots:
+// $4,120 · REP 1240 · day 4 · M7 · GOLD 7/20 · 12 cars · 14 takedowns ·
+// 3 escapes · 8.4 km · wanted 5 · 00:20:40 played.
+(function () {
+  'use strict';
+  var VB = window.VB;
+  var U = VB.util;
+  var THREE = window.THREE;
 
-/** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
-const MAX_FRAME = 0.25;
+  var renderer, scene, camera, clock;
+  var frames = 0, titleAngle = 0.35;
+  var stagedExtras = [];
+  var tAcc = 0;
 
-const params = new URLSearchParams(window.location.search);
-const shot = params.get('shot');
-const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
-const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
-
-const canvas = document.getElementById('game');
-const status = document.getElementById('status');
-const world = createWorld(createRandom(seed));
-const renderer = createRenderer(canvas);
-
-function readBest() {
-  try {
-    return Number.parseInt(window.localStorage.getItem(BEST_KEY) ?? '0', 10) || 0;
-  } catch {
-    return 0;
-  }
-}
-
-function saveBest(value) {
-  try {
-    window.localStorage.setItem(BEST_KEY, String(value));
-  } catch {
-    // Storage can be off (private windows): the best score then lasts this visit only.
-  }
-}
-
-function runShot(name) {
-  const scene = stageShot(name, world);
-  let painted = 0;
-  function paint() {
-    renderer.draw(world.state, scene.screen, scene.best);
-    painted += 1;
-    if (painted < 2) requestAnimationFrame(paint);
-    else window.__shotReady = true;
-  }
-  requestAnimationFrame(paint);
-}
-
-function runGame() {
-  const input = createInput(canvas);
-  let screen = SCREEN_TITLE;
-  let best = readBest();
-  let accumulator = 0;
-  let last = performance.now();
-
-  // Screen readers (and anyone watching the page's text) hear the screen changes and each hit.
-  function announce(message) {
-    status.textContent = message;
-  }
-
-  function startGame() {
-    world.reset();
-    accumulator = 0;
-    screen = SCREEN_PLAY;
-    announce(`Playing. ${LIVES} lives.`);
-  }
-
-  function endGame() {
-    screen = SCREEN_OVER;
-    if (world.state.score > best) {
-      best = world.state.score;
-      saveBest(best);
-    }
-    announce(`Game over. Score ${world.state.score}. Best ${best}.`);
-  }
-
-  function handleActions() {
-    const actions = input.takeActions();
-    if (actions & ACTION_CONFIRM && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) startGame();
-    else if (actions & ACTION_PAUSE && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    } else if (actions & (ACTION_PAUSE | ACTION_CONFIRM) && screen === SCREEN_PAUSED) {
-      screen = SCREEN_PLAY;
-      announce('Playing.');
-    }
-  }
-
-  function step() {
-    if (screen === SCREEN_TITLE) {
-      world.step(STEP, 0, true);
-      return;
-    }
-    const events = world.step(STEP, input.direction(), false);
-    if (events & EVENT_OVER) endGame();
-    else if (events & EVENT_HIT) announce(world.state.lives === 1 ? 'Hit. 1 life left.' : `Hit. ${world.state.lives} lives left.`);
-  }
-
-  function frame(now) {
-    requestAnimationFrame(frame);
-    accumulator += Math.min((now - last) / 1000, MAX_FRAME);
-    last = now;
-    handleActions();
-    if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
-      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
-        step();
-        accumulator -= STEP;
-      }
+  // One fixed update tick (used by the headless playtest to simulate frames
+  // without waiting on SwiftShader's slow requestAnimationFrame).
+  function stepOnce(dt) {
+    var S = VB.state;
+    tAcc += dt;
+    if (S.mode === 'playing' && !S.frozen) {
+      S.timePlayed += dt;
+      VB.player.update(dt, tAcc);
+      VB.ai.update(dt, tAcc);
+      VB.combat.update(dt, tAcc);
+      VB.missions.update(dt, tAcc);
+      VB.world.update(dt, tAcc);
+      VB.hud.update(dt);
     } else {
-      accumulator = 0;
+      VB.world.update(dt, tAcc);
     }
-    renderer.draw(world.state, screen, best);
+    // headless playtests skip the (slow SwiftShader) render per step;
+    // screenshots are verified separately by the capture tool.
+    if (!S.headless) renderer.render(scene, camera);
   }
 
-  // Leaving the tab pauses a running game rather than letting blocks fall unseen.
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
+  VB.freeze = function (on) { VB.state.frozen = !!on; };
+
+  function boot() {
+    var canvas = document.getElementById('c');
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87b5d6);
+    scene.fog = new THREE.Fog(0xc98a6a, 90, 280);
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 600);
+    camera.position.set(-30, 10, 15);
+    VB.camera = camera;
+
+    window.addEventListener('resize', function () {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    VB.world.init(scene, renderer);
+    VB.player.init(scene, camera);
+    VB.ai.init(scene);
+    VB.combat.init(scene, camera);
+    VB.missions.init(scene);
+    VB.hud.init();
+
+    VB.hud.setMode('title');
+    VB.world.setTimeOfDay('sunset');
+    VB.audio.applyVolumes();
+
+    clock = new THREE.Clock();
+    requestAnimationFrame(loop);
+  }
+
+  function loop() {
+    requestAnimationFrame(loop);
+    var rawDt = Math.min(clock.getDelta(), 0.1);
+    var S = VB.state;
+    var dt = rawDt * (S.timeScale || 1);
+    var t = clock.elapsedTime;
+
+    if (S.mode === 'title' || S.mode === 'win') {
+      titleAngle += rawDt * 0.03;
+      camera.position.set(Math.sin(titleAngle) * 60, 26, Math.cos(titleAngle) * 60);
+      camera.lookAt(0, 2, 0);
+      VB.world.update(rawDt, t);
+    } else if (S.mode === 'playing' && !S.frozen) {
+      S.timePlayed += rawDt;
+      VB.player.update(dt, t);
+      VB.ai.update(dt, t);
+      VB.combat.update(dt, t);
+      VB.missions.update(dt, t);
+      VB.world.update(dt, t);
+      VB.hud.update(dt);
+      if (VB.input.consume('KeyM')) VB.hud.openMap('map');
+      else if (VB.input.consume('Escape')) VB.hud.setMode('paused');
+      if (VB.input.consume('Enter') && VB.missions.dialogueActive()) VB.missions.advanceDialogue();
+    } else if (S.mode === 'map') {
+      VB.hud.drawMap();
+      if (VB.input.consume('KeyM') || VB.input.consume('Escape')) VB.hud.closeMap();
+    } else if (S.mode === 'paused') {
+      if (VB.input.consume('Escape')) VB.hud.setMode('playing');
     }
-  });
+    renderer.render(scene, camera);
+    frames++;
+    if (frames === 3) {
+      window.__ready = true;
+      window.__stats = {
+        mode: S.mode,
+        mission: S.missionIdx + 1,
+        money: S.money,
+        goldBars: S.goldBars,
+        thugs: VB.combat.thugs.length,
+        traffic: VB.ai.traffic.length,
+        peds: VB.ai.peds.length,
+        timeOfDay: S.timeOfDay,
+        layoutViolations: VB.world.layoutViolations ? VB.world.layoutViolations.length : -1
+      };
+    }
+  }
 
-  announce('Block Dodger. Press Space or click to start.');
-  requestAnimationFrame(frame);
-}
+  function demoSave() {
+    var S = VB.state;
+    S.money = 4120; S.rep = 1240; S.day = 4;
+    S.missionIdx = 6; S.completed = [0, 1, 2, 3, 4, 5];
+    S.ratings = { 0: 'G', 1: 'S', 2: 'G', 3: 'S', 4: 'G', 5: 'S' };
+    S.skills = { Driving: 4, Combat: 3, Stamina: 3, Stealth: 2, Charisma: 3, Mechanic: 2 };
+    S.weapons.pistol.unlocked = true; S.weapons.pistol.ammo = 12; S.weapons.pistol.reserve = 48;
+    S.weapons.rifle.unlocked = true; S.weapons.rifle.ammo = 30; S.weapons.rifle.reserve = 90;
+    S.crew.tommy = true; S.crew.rosa = true; S.crew.nadia = true; S.crew.marv = true;
+    S.crew.dina = false; S.crew.kofi = false;
+    S.properties.workshop = true; S.properties.garage = true; S.properties.safehouse = false;
+    S.goldBars = 7; S.carsStolen = 12; S.takedowns = 14; S.escapes = 3;
+    S.kmDriven = 8.4; S.bestWanted = 5; S.timePlayed = 1240;
+    S.nextMilestone = 'CITY HALL';
+  }
 
-if (shot) runShot(shot);
-else runGame();
+  function clearStaged() {
+    stagedExtras.forEach(function (g) { if (g.parent) g.parent.remove(g); });
+    stagedExtras = [];
+    VB.player.camTilt = 0;
+    var wheel = document.getElementById('wheel');
+    if (wheel) wheel.style.transform = '';
+    var dlg = document.getElementById('dialogue');
+    if (dlg) dlg.style.bottom = '';
+  }
+
+  function addStaged(group) {
+    scene.add(group);
+    stagedExtras.push(group);
+    return group;
+  }
+
+  window.__game = {
+    step: stepOnce,
+    state: function () {
+      var S = VB.state;
+      return {
+        mode: S.mode, mission: S.missionIdx + 1, stage: VB.missions.currentStage() ? VB.missions.currentStage().text : null,
+        px: Math.round(VB.player.pos.x), pz: Math.round(VB.player.pos.z),
+        wanted: S.wanted, health: Math.round(S.health), money: S.money, rep: S.rep,
+        goldBars: S.goldBars, weapon: S.weapon,
+        thugsAlive: VB.combat.thugsAlive(),
+        timeOfDay: S.timeOfDay, completed: S.completed.slice(), frozen: !!S.frozen,
+        layoutViolations: VB.world.layoutViolations ? VB.world.layoutViolations.length : -1,
+        heliVisible: !!(VB.ai.heli && VB.ai.heli.visible),
+        heliPos: VB.ai.heli ? [Math.round(VB.ai.heli.position.x), Math.round(VB.ai.heli.position.y), Math.round(VB.ai.heli.position.z)] : null,
+        units: VB.ai.units.length
+      };
+    },
+    start: function () { VB.hud.newGame(); },
+    freeze: function (on) { VB.freeze(on); },
+    stageChase: function () {
+      clearStaged();
+      VB.hud.setMode('playing');
+      demoSave();
+      VB.world.setTimeOfDay('sunset'); // cover = chase at golden hour
+      var saw = VB.player.heroSaw;
+      saw.x = -10; saw.z = 2.5; saw.heading = Math.PI / 2; saw.speed = 30;
+      saw.group.position.set(-10, 0, 2.5);
+      saw.group.rotation.y = Math.PI / 2;
+      VB.player.resetTo(-10, 2.5, Math.PI / 2);
+      VB.player.enterVehicle(saw, true);
+      // Spread traffic along the road, clear of the Saw and of the roadblock
+      var txs = [-70, -55, -40, -25, 40, 28, 55, 60, 70, -60, 48, 50, -45];
+      VB.ai.traffic.forEach(function (t, i) {
+        var nx = txs[i % txs.length], nz = (i % 2 === 0) ? 2.5 : -2.5;
+        t.x = nx; t.z = nz;
+        t.group.position.set(nx, 0, nz);
+      });
+      VB.ai.addWanted(5, 'chase');
+      VB.missions.setStage(6, 1); // M7 chase stage
+      // Police convoy IN FRAME: ahead and alongside the Saw, not behind the camera
+      var convoy = [[6, 2.5], [0, -2.5], [12, -2.5], [14, 2.5], [18, -2.5], [24, 2.5]];
+      VB.ai.units.forEach(function (u, i) {
+        var c = convoy[i % convoy.length];
+        u.x = c[0]; u.z = c[1];
+        u.group.position.set(u.x, 0, u.z);
+        u.heading = Math.PI / 2; u.group.rotation.y = Math.PI / 2;
+        u.dist = Math.round(Math.hypot(u.x - VB.player.pos.x, u.z - VB.player.pos.z));
+      });
+      // Roadblock ahead spanning BOTH lanes (x=30, two cars across the road)
+      [-1.8, 1.8].forEach(function (off) {
+        var g = VB.player.makeCar({ color: 0xf2f2f2, police: true });
+        g.group.position.set(30, 0, off);
+        g.group.rotation.y = Math.PI / 2;
+        addStaged(g.group);
+      });
+      // BIG helicopter: placeHeli(22,8,-2), scale 1.6, side profile to the camera.
+      // The chase camera looks east, so the airframe must lie north-south
+      // (rotation.y = PI/2, nose left) for body + tail + rotor to read in profile.
+      VB.ai.placeHeli(22, 8, -2);
+      VB.ai.heli.scale.set(1.6, 1.6, 1.6);
+      VB.ai.heli.rotation.y = Math.PI / 2;
+      // Densify: +8 extra vehicles (incl. Red GT + 1 police) and +10 pedestrians
+      var extraCars = [
+        [-32, 2.5, 'sedan', 0xdddddd], [-18, -2.5, 'sedan', 0x2e6b8a], [34, -2.5, 'gt', 0xc0392b],
+        [44, 2.5, 'sedan', 0xe8b13c], [-48, 2.5, 'van', 0x222831], [52, -2.5, 'sedan', 0x7b5cff],
+        [36, 2.5, 'police', 0xf2f2f2], [-62, -2.5, 'sedan', 0x3a6b4f]
+      ];
+      extraCars.forEach(function (ec) {
+        var car = ec[2] === 'gt' ? VB.player.makeCar({ color: ec[3], sport: true, plate: 'GT-77' })
+          : ec[2] === 'van' ? VB.player.makeVan(ec[3])
+          : ec[2] === 'police' ? VB.player.makeCar({ color: ec[3], police: true })
+          : VB.player.makeCar({ color: ec[3] });
+        car.group.position.set(ec[0], 0, ec[1]);
+        addStaged(car.group);
+      });
+      for (var pi = 0; pi < 10; pi++) {
+        var h = VB.player.makeHumanoid({
+          height: 1.65 + Math.random() * 0.2,
+          shirt: [0x2e6b8a, 0xc0392b, 0xd4a017, 0x3a6b4f][pi % 4],
+          pants: 0x2a3242, hair: 0x1a1a1a, hairStyle: 'normal'
+        });
+        h.group.position.set(-24 + pi * 5, 0, pi % 2 ? 6.5 : -6.5);
+        h.setPose('walk');
+        addStaged(h.group);
+      }
+      // Extra street props so nothing reads empty
+      addStaged(VB.world.makeLamp(-34, 5.4));
+      addStaged(VB.world.makeLamp(-16, -5.4));
+      addStaged(VB.world.makePalm(-28, 6.5, 1));
+      addStaged(VB.world.makePalm(20, -6.5, 1));
+      addStaged(VB.world.makePalm(44, 6.5, 1));
+      addStaged(VB.world.makePalm(-44, -6.5, 1));
+      // Pedestrians fleeing on the sidewalks
+      VB.ai.peds.forEach(function (p, i) {
+        p.x = -20 + i * 6; p.z = i % 2 ? 6.5 : -6.5;
+        p.group.position.set(p.x, 0, p.z);
+        p.fleeing = true;
+      });
+      // Tommy dialogue — raised so it does not cover the Saw's plate
+      VB.missions.showDialogue([
+        { who: 'TOMMY — Foreman', text: 'They\'re on us! Stay on Beach Blvd — lose them at the marina!' }
+      ], null);
+      var dlg = document.getElementById('dialogue');
+      if (dlg) dlg.style.bottom = '170px';
+      VB.player.heroSaw.speed = 30;
+      VB.hud.refresh();
+      VB.player.updateCamera(camera, 1);
+      VB.player.updateCamera(camera, 1);
+      // Tilt the chase camera up ~7° so the heli sits in the upper-centre frame
+      VB.player.camTilt = 0.12;
+      VB.player.updateCamera(camera, 1);
+      VB.freeze(true);
+    },
+    stageNight: function () {
+      clearStaged();
+      VB.hud.setMode('playing');
+      demoSave();
+      VB.world.setTimeOfDay('night');
+      VB.player.setCamera(Math.PI, 0.32, 7.5);
+      // Eli on the north side of the street (z=-1), facing north toward the
+      // thugs; camera sits south of him looking north, thugs beyond him.
+      VB.player.resetTo(-64, -1, Math.PI);
+      // Park the lumber truck out of frame (it sat 4 m from Eli and filled
+      // the foreground as a huge red box in the first night capture).
+      var mt = VB.player.missionTruck;
+      mt.x = -88; mt.z = -22; mt.group.position.set(-88, 0, -22);
+      // Clear traffic away from Eli (a parked car was crowding the right edge)
+      var ntx = [-70, -55, -40, 40, 55, 70, -30, 30, 48, 60, -48, 20, -38];
+      VB.ai.traffic.forEach(function (t, i) {
+        var nx = ntx[i % ntx.length], nz = (i % 2 === 0) ? 2.5 : -2.5;
+        t.x = nx; t.z = nz;
+        t.group.position.set(nx, 0, nz);
+      });
+      // Fill the frame: market tents at the foreground sides (not centre, so
+      // Eli stays visible) + one in the background beyond the thugs.
+      var tentSpots = [[-71, 4, 0xd94f4f], [-57, 5, 0xd4a017], [-58, -14, 0x2e6b8a]];
+      tentSpots.forEach(function (ts) {
+        var tent = new THREE.Group();
+        var base = new THREE.Mesh(new THREE.BoxGeometry(3, 1.6, 2.4), new THREE.MeshStandardMaterial({ color: 0x3a3f4a, roughness: 0.9 }));
+        base.position.y = 0.8;
+        tent.add(base);
+        var roofT = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.4, 4), new THREE.MeshStandardMaterial({ color: ts[2], roughness: 0.8 }));
+        roofT.position.y = 2.3; roofT.rotation.y = Math.PI / 4;
+        tent.add(roofT);
+        tent.position.set(ts[0], 0, ts[1]);
+        addStaged(tent);
+      });
+      VB.combat.setWeapon('pistol');
+      VB.combat.spawnThug(-60, -8, 'pistol', 'night');
+      VB.combat.spawnThug(-68, -7, 'bat', 'night');
+      VB.combat.spawnThug(-58, -12, 'pistol', 'night');
+      VB.missions.preview(6, 1);
+      VB.hud.refresh();
+      VB.player.updateCamera(camera, 1);
+      // Mid-fight: Eli fires (tracer + flash from the camera ray)
+      VB.combat.aiming = true;
+      VB.combat.fire();
+      VB.combat.openWheel();
+      // Shift the wheel right so Eli stays visible left of it (the wheel used
+      // to cover him completely at screen centre).
+      document.getElementById('wheel').style.transform = 'translate(calc(-50% + 200px), -50%)';
+      // Keep ammo consistent across shots (12/48 everywhere)
+      VB.state.weapons.pistol.ammo = 12;
+      VB.hud.refresh();
+      VB.freeze(true);
+      // Frozen-frame combat FX: thug tracer toward Eli + damage number on the
+      // pistol thug. These persist because the frozen loop never fades them.
+      VB.combat.stageCombatFX(
+        new THREE.Vector3(-60, 1.4, -8), new THREE.Vector3(-64, 1.3, -1),
+        '-34', new THREE.Vector3(-60, 1.8, -8));
+    },
+    stageMap: function () {
+      clearStaged();
+      VB.hud.setMode('playing');
+      demoSave();
+      VB.world.setTimeOfDay('day');
+      VB.player.resetTo(-30, 4, 0);
+      VB.missions.preview(6, 1);
+      VB.hud.refresh();
+      VB.hud.openMap('map');
+      VB.freeze(true);
+    },
+    stageTitle: function () {
+      clearStaged();
+      demoSave();
+      VB.save.write(1); // title slots show the same canonical save as the other shots
+      VB.hud.showTitle();
+      VB.freeze(true);
+    },
+    stageWin: function () {
+      clearStaged();
+      VB.missions.win();
+      VB.freeze(true);
+    }
+  };
+
+  window.addEventListener('DOMContentLoaded', boot);
+  if (document.readyState !== 'loading') boot();
+})();
