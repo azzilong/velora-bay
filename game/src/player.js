@@ -432,8 +432,12 @@
   }
 
   function resetTo(x, z, head) {
-    pos.x = x; pos.z = z; heading = head == null ? 0 : head; camYaw = heading;
+    // Exit the vehicle FIRST: exitVehicle() overwrites pos with the exit
+    // spot, so setting pos before it would be clobbered (the player would
+    // respawn at the car's door instead of the requested point — e.g. a
+    // busted driver respawning at the car instead of the Workshop).
     if (currentVehicle) exitVehicle();
+    pos.x = x; pos.z = z; heading = head == null ? 0 : head; camYaw = heading;
     eli.group.position.set(x, 0, z);
     eli.group.rotation.y = heading;
     barnabyPos.x = x + 1.5; barnabyPos.z = z + 1.5;

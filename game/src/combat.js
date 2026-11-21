@@ -36,7 +36,7 @@
       pistol: '<svg viewBox="0 0 40 40"><path d="M8 12h24v6H18v4h-6v8H8z" fill="currentColor"/></svg>',
       rifle: '<svg viewBox="0 0 40 40"><rect x="6" y="16" width="28" height="5" fill="currentColor"/><rect x="24" y="12" width="4" height="12" fill="currentColor"/><rect x="12" y="21" width="4" height="8" fill="currentColor"/></svg>'
     };
-    var html = '<div class="wheel-title">WEAPON WHEEL</div><div class="wheel-slow">SLOW-MO</div>';
+    var html = '<div class="wheel-title">WEAPON WHEEL</div>';
     var positions = [
       { id: 'fists', x: '50%', y: '8%', label: 'top' },
       { id: 'hammer', x: '88%', y: '50%', label: 'right' },
@@ -128,7 +128,7 @@
     var band = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.34), new THREE.MeshStandardMaterial({ color: 0xdd2222, roughness: 0.8 }));
     band.position.y = 0.2;
     human.parts.head.add(band);
-    var marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.18), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 1.2 }));
+    var marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.3), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 2.2 }));
     marker.position.y = 2.3;
     human.group.add(marker);
     human.group.position.set(x, 0, z);
@@ -148,6 +148,13 @@
     el.textContent = text;
     el.style.color = color || '#ffd34d';
     document.getElementById('fx-layer').appendChild(el);
+    // Position immediately: the per-frame update that normally places the
+    // element never runs while the game is frozen for a staged shot, so a
+    // number created for staging would otherwise sit at the top-left corner.
+    var sp = projectToScreen(worldPos);
+    el.style.display = sp.behind ? 'none' : 'block';
+    el.style.left = sp.x + 'px';
+    el.style.top = sp.y + 'px';
     dmgNumbers.push({ el: el, pos: worldPos.clone(), life: 1.0 });
   }
 

@@ -95,6 +95,10 @@ async function main() {
     await cdp.ready;
     await cdp.call('Page.enable');
     await cdp.call('Runtime.enable');
+    // Force the exact viewport: --window-size alone left the headless
+    // viewport at 1280x583 (the screenshots came out short, cutting the
+    // map screen's bottom row). The override makes the capture truly WxH.
+    await cdp.call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     await cdp.call('Page.navigate', { url });
     let ready = false;
     for (let i = 0; i < 120; i++) {

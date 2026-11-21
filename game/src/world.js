@@ -325,7 +325,7 @@
     // light pool on the ground
     var pool = new THREE.Mesh(
       new THREE.CircleGeometry(2.6, 20),
-      new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.14, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.22, depthWrite: false })
     );
     pool.rotation.x = -Math.PI / 2; pool.position.y = 0.04;
     g.add(pool);
@@ -362,7 +362,9 @@
   var skyMesh, skyCanvas, skyTex, clouds = [];
   var SKY_GRADIENTS = {
     day: ['#7ec0ee', '#a8d8f0', '#e8f4f8', '#fff3d6'],
-    sunset: ['#2a1b4e', '#7a2d6e', '#e85d4a', '#ffb347'],
+    // warmer golden hour: soft violet up top, orange-red mid-sky, gold at
+    // the horizon (the old gradient read mostly magenta/purple in-frame).
+    sunset: ['#3b2560', '#93406b', '#f4734a', '#ffbe5c'],
     night: ['#050914', '#0d1b3e', '#1a2a52', '#2a3a5e']
   };
   function drawSky(tod) {
@@ -371,8 +373,8 @@
     skyCanvas.width = 4; skyCanvas.height = 256;
     var g = skyCanvas.getContext('2d');
     var gr = g.createLinearGradient(0, 0, 0, 256);
-    gr.addColorStop(0, grad[0]); gr.addColorStop(0.45, grad[1]);
-    gr.addColorStop(0.75, grad[2]); gr.addColorStop(1, grad[3]);
+    gr.addColorStop(0, grad[0]); gr.addColorStop(0.38, grad[1]);
+    gr.addColorStop(0.68, grad[2]); gr.addColorStop(1, grad[3]);
     g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
     if (skyTex) skyTex.dispose();
     skyTex = new THREE.CanvasTexture(skyCanvas);
@@ -613,9 +615,9 @@
       hemiLight.intensity = 1.0; ambLight.intensity = 0.25;
       sceneRef.fog = new THREE.Fog(0xc98a6a, 90, 280);
     } else { // night
-      keyLight.color.setHex(0x8aa8d8); keyLight.intensity = 0.55;
+      keyLight.color.setHex(0x8aa8d8); keyLight.intensity = 0.7;
       keyLight.position.set(40, 70, -30);
-      hemiLight.intensity = 0.35; ambLight.intensity = 0.12;
+      hemiLight.intensity = 0.45; ambLight.intensity = 0.18;
       sceneRef.fog = new THREE.Fog(0x0a1120, 60, 220);
     }
     // windows glow at night

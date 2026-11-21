@@ -25,7 +25,7 @@
     return U.pad2(h) + ':' + U.pad2(m) + ':' + U.pad2(s);
   };
   U.el = function (id) { return document.getElementById(id); };
-  U.show = function (id, on) { var e = U.el(id); if (e) e.style.display = on ? '' : 'none'; };
+  U.show = function (id, on) { var e = U.el(id); if (e) e.style.display = on ? 'block' : 'none'; };
   U.setText = function (id, txt) { var e = U.el(id); if (e) e.textContent = txt; };
   U.escapeHtml = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
 

@@ -211,11 +211,16 @@
         g.group.rotation.y = Math.PI / 2;
         addStaged(g.group);
       });
-      // BIG helicopter: placeHeli(22,8,-2), scale 1.6, side profile to the camera.
-      // The chase camera looks east, so the airframe must lie north-south
-      // (rotation.y = PI/2, nose left) for body + tail + rotor to read in profile.
-      VB.ai.placeHeli(22, 8, -2);
-      VB.ai.heli.scale.set(1.6, 1.6, 1.6);
+      // BIG helicopter: placeHeli(12,6.5,0), scale 1.8, side profile to the camera.
+      // The chase camera sits 9.5 m behind the Saw, so a heli 22 m ahead of the
+      // Saw is ~41 m from the camera and reads small (~19% of frame width);
+      // at 12 m ahead, scale 1.8, it is ~32 m from the camera and reads ~28%
+      // — big and clear. z=0 puts it over the road centre (on the camera axis);
+      // y=6.5 keeps the rotor inside the frame. The airframe must lie
+      // north-south (rotation.y = PI/2, nose left) for body + tail + rotor
+      // to read in profile.
+      VB.ai.placeHeli(12, 6.5, 0);
+      VB.ai.heli.scale.set(1.8, 1.8, 1.8);
       VB.ai.heli.rotation.y = Math.PI / 2;
       // Densify: +8 extra vehicles (incl. Red GT + 1 police) and +10 pedestrians
       var extraCars = [
@@ -261,11 +266,15 @@
       var dlg = document.getElementById('dialogue');
       if (dlg) dlg.style.bottom = '170px';
       VB.player.heroSaw.speed = 30;
+      VB.state.speedKmh = 108; // 30 m/s — the speedo reads the state, and
+      // driveVehicle (which normally sets it) never runs while frozen
       VB.hud.refresh();
+      VB.hud.drawMinimap(); // frozen staging never runs hud.update, so the
+      // minimap canvas would stay blank (transparent) without this
       VB.player.updateCamera(camera, 1);
       VB.player.updateCamera(camera, 1);
-      // Tilt the chase camera up ~7° so the heli sits in the upper-centre frame
-      VB.player.camTilt = 0.12;
+      // Tilt the chase camera up ~5° so the heli sits in the upper-centre frame
+      VB.player.camTilt = 0.08;
       VB.player.updateCamera(camera, 1);
       VB.freeze(true);
     },
@@ -274,7 +283,7 @@
       VB.hud.setMode('playing');
       demoSave();
       VB.world.setTimeOfDay('night');
-      VB.player.setCamera(Math.PI, 0.32, 7.5);
+      VB.player.setCamera(Math.PI, 0.22, 6.5);
       // Eli on the north side of the street (z=-1), facing north toward the
       // thugs; camera sits south of him looking north, thugs beyond him.
       VB.player.resetTo(-64, -1, Math.PI);
@@ -289,15 +298,16 @@
         t.x = nx; t.z = nz;
         t.group.position.set(nx, 0, nz);
       });
-      // Fill the frame: market tents at the foreground sides (not centre, so
-      // Eli stays visible) + one in the background beyond the thugs.
-      var tentSpots = [[-71, 4, 0xd94f4f], [-57, 5, 0xd4a017], [-58, -14, 0x2e6b8a]];
+      // Fill the frame: market tents FLANKING the thugs, north of Eli — in
+      // frame. (The old spots at z=+4/+5 sat between Eli and the camera,
+      // behind the lens, so the shot showed empty asphalt instead.)
+      var tentSpots = [[-72, -5, 0xd94f4f], [-56, -5, 0xd4a017], [-58, -14, 0x2e6b8a]];
       tentSpots.forEach(function (ts) {
         var tent = new THREE.Group();
         var base = new THREE.Mesh(new THREE.BoxGeometry(3, 1.6, 2.4), new THREE.MeshStandardMaterial({ color: 0x3a3f4a, roughness: 0.9 }));
         base.position.y = 0.8;
         tent.add(base);
-        var roofT = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.4, 4), new THREE.MeshStandardMaterial({ color: ts[2], roughness: 0.8 }));
+        var roofT = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.4, 4), new THREE.MeshStandardMaterial({ color: ts[2], roughness: 0.8, emissive: ts[2], emissiveIntensity: 0.35 }));
         roofT.position.y = 2.3; roofT.rotation.y = Math.PI / 4;
         tent.add(roofT);
         tent.position.set(ts[0], 0, ts[1]);
@@ -314,12 +324,15 @@
       VB.combat.aiming = true;
       VB.combat.fire();
       VB.combat.openWheel();
-      // Shift the wheel right so Eli stays visible left of it (the wheel used
-      // to cover him completely at screen centre).
-      document.getElementById('wheel').style.transform = 'translate(calc(-50% + 200px), -50%)';
+      // Shift the wheel right AND down so Eli + the thugs stay visible left of
+      // it and its top segment clears the HUD weapon bar (the 420 px wheel
+      // used to cover them completely at screen centre).
+      document.getElementById('wheel').style.transform = 'translate(calc(-50% + 260px), calc(-50% + 60px))';
       // Keep ammo consistent across shots (12/48 everywhere)
       VB.state.weapons.pistol.ammo = 12;
       VB.hud.refresh();
+      VB.hud.drawMinimap(); // frozen staging never runs hud.update, so the
+      // minimap canvas would stay blank (transparent) without this
       VB.freeze(true);
       // Frozen-frame combat FX: thug tracer toward Eli + damage number on the
       // pistol thug. These persist because the frozen loop never fades them.

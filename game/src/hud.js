@@ -144,7 +144,9 @@
         panel.innerHTML = '<div class="vbpd-empty">NO ACTIVE PURSUIT</div>';
       } else {
         var html = '';
-        units.forEach(function (u) {
+        // Show at most 4 units; the rest collapse into a "+N more" line.
+        // (Rendering all 6 AND the "+2 more" line double-counted the pursuit.)
+        units.slice(0, 4).forEach(function (u) {
           html += '<div class="vbpd-row"><span class="vbpd-name">' + U.escapeHtml(u.unitName) + '</span>' +
             '<span class="vbpd-role ' + (u.unitRole === 'RAMMING' ? 'role-ram' : '') + '">' + u.unitRole + '</span>' +
             '<span class="vbpd-dist">' + u.dist + 'm</span></div>';
@@ -249,7 +251,9 @@
       ctx.stroke();
     });
     ctx.setLineDash([]);
-    // district labels
+    // district labels (big map only — at minimap scale the five names
+    // collide into one unreadable strip)
+    if (!forMinimap) {
     ctx.font = 'bold ' + Math.max(10, Math.round(13 * t.scale / 2.5)) + 'px Arial';
     ctx.textAlign = 'center';
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,17,32,0.85)';
@@ -259,7 +263,7 @@
       var words = label.split(' ');
       var ly = t.Y(-52);
       ctx.fillStyle = '#ffffff';
-      if (words.length > 1 && !forMinimap) {
+      if (words.length > 1) {
         ctx.strokeText(words[0], t.X(cx), ly);
         ctx.fillText(words[0], t.X(cx), ly);
         ctx.strokeText(words[1], t.X(cx), ly + 15);
@@ -269,7 +273,9 @@
         ctx.fillText(label, t.X(cx), ly);
       }
     });
-    // POI markers + labels (each with its own anchor so nothing stacks)
+    }
+    // POI markers + labels (each with its own anchor so nothing stacks).
+    // The dots draw on the minimap too; the label text is big-map only.
     var pois = VB.world.pois;
     ctx.font = 'bold ' + Math.max(9, Math.round(11 * t.scale / 2.5)) + 'px Arial';
     Object.keys(pois).forEach(function (key) {
@@ -278,6 +284,7 @@
       ctx.fillStyle = '#ffd34d';
       ctx.beginPath(); ctx.arc(px, py, Math.max(3, 3.5 * t.scale / 2.5), 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#0a1120'; ctx.lineWidth = 1.5; ctx.stroke();
+      if (forMinimap) return;
       ctx.fillStyle = '#ffffff';
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,17,32,0.9)';
       var lx = px, ly2 = py;
