@@ -159,13 +159,13 @@
     // world-space beam: cone from the heli down to the road + light pool.
     // (The built-in cone approach was inverted — apex at the ground — so the
     // beam is built explicitly in world space instead.)
-    var beamMat = new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false });
-    heliBeam = new THREE.Mesh(new THREE.ConeGeometry(3.2, 10, 20, 1, true), beamMat);
+    var beamMat = new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false });
+    heliBeam = new THREE.Mesh(new THREE.ConeGeometry(3.8, 10, 20, 1, true), beamMat);
     heliBeam.visible = false;
     scene.add(heliBeam);
     heliPool = new THREE.Mesh(
-      new THREE.CircleGeometry(3.4, 24),
-      new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.28, depthWrite: false })
+      new THREE.CircleGeometry(4.0, 24),
+      new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.35, depthWrite: false })
     );
     heliPool.rotation.x = -Math.PI / 2; heliPool.position.y = 0.05; heliPool.visible = false;
     scene.add(heliPool);

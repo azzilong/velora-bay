@@ -174,9 +174,12 @@
       });
       wb.innerHTML = html2;
     }
-    // speed
+    // speed: setText would wipe the <span>KM/H</span> (textContent replaces
+    // the whole div) — rebuild the number + unit explicitly so the unit
+    // never goes missing from the shot.
     U.show('hud-speed', S.inVehicle);
-    U.setText('hud-speed-num', String(S.speedKmh || 0));
+    var spn = U.el('hud-speed-num');
+    if (spn) spn.innerHTML = String(S.speedKmh || 0) + ' <span>KM/H</span>';
     U.setText('hud-vehicle', S.vehicleName || '');
     U.setText('hud-fuel', 'FUEL ' + Math.round(S.fuel) + '%');
     U.setText('hud-cond', 'CONDITION ' + Math.round(S.vehicleCond) + '%');
@@ -224,6 +227,37 @@
     ctx.fillRect(t.X(68), t.oy, 7 * t.scale, 150 * t.scale);
     ctx.fillStyle = '#2a7a94';
     ctx.fillRect(0, t.oy, t.X(-75), 150 * t.scale);
+    // sea detail: boats, wave dashes and water labels so the big teal
+    // areas do not read as empty flat colour
+    (function () {
+      var westCX = t.X(-75) / 2, eastCX = (t.X(68) + W) / 2;
+      var midY = t.oy + 75 * t.scale;
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = 'bold ' + Math.max(10, Math.round(12 * t.scale / 2.5)) + 'px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('HARBOR', westCX, midY - 52);
+      ctx.fillText('VELORA BAY', eastCX, midY - 52);
+      // schematic boats (white hull + mast)
+      function drawBoat(bx, by, s) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(bx - 7 * s, by); ctx.lineTo(bx + 7 * s, by);
+        ctx.lineTo(bx + 4 * s, by + 4 * s); ctx.lineTo(bx - 4 * s, by + 4 * s);
+        ctx.closePath(); ctx.fill();
+        ctx.fillRect(bx - 0.75 * s, by - 8 * s, 1.5 * s, 8 * s);
+      }
+      drawBoat(westCX - 24, midY + 18, 1);
+      drawBoat(westCX + 30, midY + 58, 0.8);
+      drawBoat(eastCX - 28, midY + 24, 1);
+      drawBoat(eastCX + 32, midY - 18, 0.8);
+      drawBoat(eastCX, midY + 62, 0.7);
+      // wave dashes
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5;
+      [[westCX - 30, midY - 20], [westCX + 28, midY + 90], [eastCX - 34, midY + 90],
+       [eastCX + 30, midY + 40], [westCX, midY - 78], [eastCX - 8, midY - 78]].forEach(function (w) {
+        ctx.beginPath(); ctx.moveTo(w[0] - 8, w[1]); ctx.lineTo(w[0] + 8, w[1]); ctx.stroke();
+      });
+    })();
     // roads: dark asphalt bands with gold centre lines
     var L = VB.world.LAYOUT;
     L.roads.forEach(function (r) {
@@ -293,6 +327,7 @@
       else if (p.anchor === 'below') { ctx.textAlign = 'center'; ly2 = py + 14; }
       else if (p.anchor === 'above') { ctx.textAlign = 'center'; ly2 = py - 10; }
       else { ctx.textAlign = 'center'; ly2 = py - 10; }
+      ly2 += (p.dy || 0); // per-POI vertical stagger (keeps the z=-24 row apart)
       ctx.strokeText(p.label, lx, ly2);
       ctx.fillText(p.label, lx, ly2);
       ctx.textAlign = 'center';

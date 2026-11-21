@@ -46,14 +46,17 @@
   .wslot-ammo { font-size: 11px; color: #ffd34d; }
   #swap-plates { position: absolute; top: 252px; right: 12px; padding: 8px 12px; font-size: 13px; }
   #swap-plates b { color: #ffd34d; }
-  #minimap-wrap { position: absolute; left: 12px; bottom: 12px; }
+  #minimap-wrap { position: absolute; left: 12px; bottom: 28px; }
   #minimap { display: block; border: 2px solid #d4a017; border-radius: 6px; background: rgba(10,17,32,0.7); }
   #hud-district { font-size: 12px; font-weight: bold; color: #ffd34d; margin: 4px 0 2px; }
   .bar-wrap { width: 220px; height: 10px; background: #22304a; border-radius: 5px; overflow: hidden; margin-top: 3px; }
   #hud-hp-fill { height: 100%; background: #3ec96b; width: 100%; }
   #hud-armor-fill { height: 100%; background: #9fc8e8; width: 0%; }
   .bar-label { font-size: 11px; color: #ccc; display: flex; justify-content: space-between; width: 220px; }
-  #hud-speed { position: absolute; right: 16px; bottom: 14px; text-align: right; }
+  /* Speedo: a real panel (gold on gold 3D behind it made the bare number
+     unreadable) and set 28 px in from the right/bottom edges so nothing
+     reads as cut off at any edge. */
+  #hud-speed { position: absolute; right: 28px; bottom: 28px; text-align: right; background: rgba(13,27,62,0.88); border: 1px solid #d4a017; border-radius: 8px; padding: 8px 12px; }
   #hud-speed-num { font-size: 44px; font-weight: bold; color: #ffd34d; line-height: 1; }
   #hud-speed-num span { font-size: 16px; color: #fff; }
   #hud-vehicle { font-size: 13px; font-weight: bold; }
@@ -104,13 +107,13 @@
   .map-head { display: flex; justify-content: space-between; align-items: baseline; }
   .map-head h2 { margin: 0; color: #ffd34d; letter-spacing: 2px; }
   #map-complete { font-size: 20px; font-weight: bold; color: #ffd34d; }
-  .map-tabs { display: flex; gap: 6px; margin: 10px 0; }
+  .map-tabs { display: flex; gap: 6px; margin: 6px 0; }
   .map-tab { padding: 6px 16px; background: rgba(255,255,255,0.08); border: 1px solid #445; border-radius: 6px; color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; }
   .map-tab.active { background: #ffd34d; color: #0a1120; }
   .map-cols { display: flex; gap: 18px; }
   .map-col-left { width: 300px; flex-shrink: 0; }
   .map-col-right { flex: 1; }
-  .map-box { padding: 8px 10px; margin-bottom: 6px; }
+  .map-box { padding: 8px 10px; margin-bottom: 4px; }
   .map-box h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 2px; color: #ffd34d; }
   .map-mission { font-size: 13px; padding: 3px 0; color: #c8d4e8; }
   .map-mission.done { color: #7ad08a; }
@@ -119,9 +122,9 @@
   .mm-state { float: right; font-size: 11px; }
   .skill-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
   .pips { color: #ffd34d; letter-spacing: 2px; }
-  #map-canvas { width: 100%; height: 260px; display: block; background: #22304a; border: 1px solid #d4a017; border-radius: 8px; }
+  #map-canvas { width: 100%; height: 320px; display: block; background: #22304a; border: 1px solid #d4a017; border-radius: 8px; }
   .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-  .stat { text-align: center; padding: 4px 2px; background: rgba(255,255,255,0.05); border-radius: 6px; }
+  .stat { text-align: center; padding: 3px 2px; background: rgba(255,255,255,0.05); border-radius: 6px; }
   .stat b { display: block; font-size: 14px; color: #ffd34d; }
   .stat span { font-size: 10px; color: #9fc8e8; }
   .legend { font-size: 12px; color: #c8d4e8; line-height: 1.8; }
@@ -264,7 +267,7 @@
           </div>
         </div>
         <div class="map-col-right">
-          <canvas id="map-canvas" width="640" height="260"></canvas>
+          <canvas id="map-canvas" width="640" height="320"></canvas>
           <div class="map-box panel" style="margin-top:12px">
             <h3>CAREER STATS</h3>
             <div class="stats-grid" id="map-stats"></div>
@@ -272,8 +275,7 @@
           <div class="map-box panel">
             <h3>LEGEND</h3>
             <div class="legend">
-              <span class="sw"></span> District boundary &nbsp;·&nbsp; <span style="color:#ffd34d">●</span> Location &nbsp;·&nbsp; <span style="color:#b06fd4">┄</span> GPS route &nbsp;·&nbsp; <span style="color:#fff">▲</span> You &nbsp;·&nbsp; <span style="color:#ff2e88">●</span> Objective<br>
-              Grid A–F / 1–6 &nbsp;·&nbsp; Districts: Portside · Velora Center · Neon Row · Marina Heights · Velora Beach
+              <span class="sw"></span> District boundary &nbsp;·&nbsp; <span style="color:#ffd34d">●</span> Location &nbsp;·&nbsp; <span style="color:#b06fd4">┄</span> GPS route &nbsp;·&nbsp; <span style="color:#fff">▲</span> You &nbsp;·&nbsp; <span style="color:#ff2e88">●</span> Objective &nbsp;·&nbsp; Grid A–F / 1–6
             </div>
           </div>
         </div>

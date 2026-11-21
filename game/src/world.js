@@ -87,12 +87,12 @@
   var BOUNDARIES = [-45, -10, 20, 50];
 
   var POIS = {
-    workshop: { x: -63, z: -24, label: 'WORKSHOP', anchor: 'right' },
+    workshop: { x: -63, z: -24, label: 'WORKSHOP', anchor: 'left' },
     pier9: { x: -73, z: 24, label: 'PIER 9', anchor: 'right' },
-    cityHall: { x: -27, z: -24, label: 'CITY HALL', anchor: 'right' },
+    cityHall: { x: -27, z: -24, label: 'CITY HALL', anchor: 'above', dy: -12 },
     garage: { x: -27, z: 24, label: 'GARAGE', anchor: 'below' },
-    vbpd: { x: -14, z: -24, label: 'VBPD HQ', anchor: 'above' },
-    market: { x: 5, z: -24, label: 'NIGHT MARKET', anchor: 'right' },
+    vbpd: { x: -14, z: -24, label: 'VBPD HQ', anchor: 'below' },
+    market: { x: 5, z: -24, label: 'NIGHT MARKET', anchor: 'above' },
     crane: { x: 5, z: 24, label: 'CRANE SITE', anchor: 'above' },
     haleTower: { x: 35, z: -24, label: 'HALE TOWER', anchor: 'below' },
     safehouse: { x: 35, z: 24, label: 'SAFEHOUSE', anchor: 'left' },

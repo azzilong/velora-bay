@@ -149,6 +149,14 @@
     // number, and the ammo never dropped. Each stage re-freezes at its end.
     VB.freeze(false);
     VB.player.camTilt = 0;
+    // Clear staged combat FX (damage numbers, tracers, muzzle flashes):
+    // they are created outside stagedExtras and never fade while frozen,
+    // so a '-34' from the night shot would otherwise survive into the
+    // title shot. Also close the weapon wheel if open (resets timeScale).
+    if (VB.combat) {
+      if (VB.combat.clearFX) VB.combat.clearFX();
+      if (VB.combat.wheelOpen) VB.combat.closeWheel();
+    }
     var wheel = document.getElementById('wheel');
     if (wheel) wheel.style.transform = '';
     var dlg = document.getElementById('dialogue');
@@ -216,16 +224,20 @@
         g.group.rotation.y = Math.PI / 2;
         addStaged(g.group);
       });
-      // BIG helicopter: placeHeli(12,6.5,0), scale 1.8, side profile to the camera.
-      // The chase camera sits 9.5 m behind the Saw, so a heli 22 m ahead of the
-      // Saw is ~41 m from the camera and reads small (~19% of frame width);
-      // at 12 m ahead, scale 1.8, it is ~32 m from the camera and reads ~28%
-      // — big and clear. z=0 puts it over the road centre (on the camera axis);
-      // y=6.5 keeps the rotor inside the frame. The airframe must lie
-      // north-south (rotation.y = PI/2, nose left) for body + tail + rotor
-      // to read in profile.
-      VB.ai.placeHeli(12, 6.5, 0);
-      VB.ai.heli.scale.set(1.8, 1.8, 1.8);
+      // BIG helicopter — measured by projection (tools verified): at
+      // placeHeli(14, 10.5, 1), scale 2.4, camTilt 0.06 the body reads ~186 px
+      // wide (15%) in CLEAR SKY, the rotor spans ~387 px (30%) fully inside
+      // the frame, the tail fin stays in frame, and the body overlaps the
+      // office block behind it by only ~135 px2 (negligible). The earlier
+      // spot (12, 6.5, 0, scale 1.8, tilt 0.08) put the small 142 px body at
+      // y 224-286, merged with the dark office behind it; camTilt 0.02 left
+      // the rotor's top blade tip clipped at y=-26. z=1 keeps it over the
+      // road centre (clear of Hale Tower to the north and Marina Hotel to the
+      // south); y=10.5 + tilt lifts it into the pink sky band. The airframe
+      // must lie north-south (rotation.y = PI/2, nose left) for body + tail +
+      // rotor to read in profile.
+      VB.ai.placeHeli(14, 10.5, 1);
+      VB.ai.heli.scale.set(2.4, 2.4, 2.4);
       VB.ai.heli.rotation.y = Math.PI / 2;
       // Densify: +8 extra vehicles (incl. Red GT + 1 police) and +10 pedestrians
       var extraCars = [
@@ -278,8 +290,14 @@
       // minimap canvas would stay blank (transparent) without this
       VB.player.updateCamera(camera, 1);
       VB.player.updateCamera(camera, 1);
-      // Tilt the chase camera up ~5° so the heli sits in the upper-centre frame
-      VB.player.camTilt = 0.08;
+      // Tilt the chase camera up ~3.5°: at camTilt 0.02 the rotor's top blade
+      // tip projected to y=-26 (clipped by the top edge of the frame). Tilt
+      // 0.06 + heli y=10.5 moves the whole assembly ~50 px down, so the
+      // rotor is fully in frame while the body stays in the clear pink sky
+      // band over the road centre (buildings are on the sides, not behind
+      // the heli at x 550-750). Measured by CDP projection probe
+      // (/tmp/fit.mjs). FIX 1 follow-up (rotor fully in frame, 2026-11-21).
+      VB.player.camTilt = 0.06;
       VB.player.updateCamera(camera, 1);
       VB.freeze(true);
     },

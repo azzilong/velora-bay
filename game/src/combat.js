@@ -290,6 +290,22 @@
     if (dmgText && dmgPos) damageNumber(dmgPos, dmgText, '#ff8866');
   }
 
+  // Remove every staged combat effect: tracer meshes + muzzle flashes from
+  // the scene and damage-number DOM elements from #fx-layer. Staged shots
+  // freeze the game, so the per-frame fade in update() never runs — without
+  // this, a '-34' from the night shot survives into the title shot (the
+  // title camera orbits, but the DOM element stays at its projected spot).
+  function clearFX() {
+    for (var i = tracers.length - 1; i >= 0; i--) {
+      sceneRef.remove(tracers[i].mesh);
+    }
+    tracers.length = 0;
+    for (var j = dmgNumbers.length - 1; j >= 0; j--) {
+      if (dmgNumbers[j].el) dmgNumbers[j].el.remove();
+    }
+    dmgNumbers.length = 0;
+  }
+
   function update(dt, t) {
     var S = VB.state;
     if (fireCooldown > 0) fireCooldown -= dt;
@@ -373,7 +389,7 @@
     init: init, update: update, fire: fire, reload: reload,
     setWeapon: setWeapon, openWheel: openWheel, closeWheel: closeWheel,
     spawnThug: spawnThug, killThug: killThug, thugsAlive: thugsAlive,
-    stageCombatFX: stageCombatFX, weapons: WEAPONS,
+    stageCombatFX: stageCombatFX, clearFX: clearFX, weapons: WEAPONS,
     get thugs() { return thugs; },
     get aiming() { return aiming; },
     set aiming(v) { aiming = v; },

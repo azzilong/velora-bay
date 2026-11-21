@@ -419,12 +419,14 @@
     scene.add(barnaby.group);
     // hero Golden Saw
     heroSaw = makeCar({ color: 0xe8a91c, emissive: 0x8a6d1a, ei: 0.65, sport: true, plate: 'VELM 001' });
+    heroSaw.name = 'THE GOLDEN SAW'; // shown in the speedo (was 'Car': makeCar sets no name)
     heroSaw.x = -10; heroSaw.z = 2.5; heroSaw.heading = Math.PI / 2; heroSaw.speed = 0;
     heroSaw.group.position.set(-10, 0, 2.5);
     heroSaw.group.rotation.y = Math.PI / 2;
     scene.add(heroSaw.group);
     // mission lumber truck (M3)
     var truck = makeTruck();
+    truck.name = 'LUMBER TRUCK';
     truck.x = -70; truck.z = -22; truck.heading = 0; truck.speed = 0;
     truck.group.position.set(-70, 0, -22);
     scene.add(truck.group);
